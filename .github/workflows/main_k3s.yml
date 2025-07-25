@@ -114,8 +114,17 @@ jobs:
 
       - name: Wait for LocalStack to be ready
         run: |
+          # Wait for LocalStack pod to be ready with insecure TLS
           kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=localstack \
-            --timeout=300s -n localstack
+            --timeout=300s -n localstack \
+            --insecure-skip-tls-verify
+          
+          # Debug: Show pod status
+          echo "=== Pod status ==="
+          kubectl get pods -n localstack --insecure-skip-tls-verify
+          
+          # Show logs if pod is not ready
+          kubectl logs -n localstack -l app.kubernetes.io/name=localstack --insecure-skip-tls-verify || true
 
       - name: Configure AWS CLI
         run: |
