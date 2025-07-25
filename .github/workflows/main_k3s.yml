@@ -40,29 +40,26 @@ jobs:
           # Install required tools
           sudo apt-get update && sudo apt-get install -y dnsutils net-tools curl
           
-          # Debug network connectivity
-          echo "=== Network Debug Info ==="
-          echo "Testing connection to Kubernetes API..."
-          curl -vk https://shivajshankar2.duckdns.org:6443/version || echo "Curl test failed"
-          
-          # Set up kubeconfig
+          # Set up kubeconfig directory
           mkdir -p ~/.kube
+          
+          # Get and modify kubeconfig
           echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig.yaml
           
-          # Update server URL to use HTTPS
+          # Update server URL and add insecure-skip-tls-verify
           sed -i 's|server: .*|server: https://shivajshankar2.duckdns.org:6443|' kubeconfig.yaml
           
-          # Add insecure-skip-tls-verify for testing
-          echo "insecure-skip-tls-verify: true" >> kubeconfig.yaml
+          # Add insecure-skip-tls-verify to the cluster configuration
+          sed -i '/certificate-authority-data:/a \    insecure-skip-tls-verify: true' kubeconfig.yaml
           
           cp kubeconfig.yaml ~/.kube/config
           chmod 600 ~/.kube/config
           
-          # Debug kubeconfig
+          # Debug info
           echo "=== Kubeconfig content ==="
           cat ~/.kube/config
           
-          # Test kubectl with verbose output
+          # Test kubectl connection
           echo "=== Testing kubectl connection ==="
           kubectl config view
           kubectl config use-context default
@@ -73,14 +70,15 @@ jobs:
         uses: azure/setup-helm@v3
         with:
           version: 'v3.12.0'
-
-      - name: Add LocalStack Helm repo
+          
+      - name: Add Helm repo
         run: |
           helm repo add localstack https://localstack.github.io/helm-charts
           helm repo update
-
-      - name: Deploy LocalStack
+          
+      - name: Deploy LocalStack with insecure TLS
         run: |
+          kubectl config set-cluster default --insecure-skip-tls-verify=true
           helm upgrade --install localstack localstack/localstack \
             --namespace localstack \
             --create-namespace \
@@ -99,7 +97,8 @@ jobs:
             --set "volumeMounts[0].name=var-run-docker-sock" \
             --set "volumeMounts[0].mountPath=/var/run/docker.sock" \
             --set "volumes[0].name=var-run-docker-sock" \
-            --set "volumes[0].hostPath.path=/var/run/docker.sock"
+            --set "volumes[0].hostPath.path=/var/run/docker.sock" \
+            --kube-insecure-skip-tls-verify
 
       - name: Wait for LocalStack to be ready
         run: |
