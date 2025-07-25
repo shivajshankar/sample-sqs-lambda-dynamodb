@@ -38,9 +38,17 @@ jobs:
       - name: Set up kubectl
         run: |
           mkdir -p ~/.kube
-          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig.yaml
+          # Update server URL if it's localhost/127.0.0.1
+          sed -i 's|server:.*127.0.0.1|server: https://shivajshankar1.duckdns.org:6443|' kubeconfig.yaml
+          cp kubeconfig.yaml ~/.kube/config
           chmod 600 ~/.kube/config
-          kubectl config view  # For debugging
+          
+          # Debug info
+          echo "=== Kubeconfig content ==="
+          cat ~/.kube/config
+          echo "\n=== Kubernetes nodes ==="
+          kubectl get nodes || true
 
       - name: Set up Helm
         uses: azure/setup-helm@v3
