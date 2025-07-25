@@ -1,4 +1,4 @@
-name: Deploy to k3s on shivajshankar1.duckdns.org
+name: Deploy to k3s on shivajshankar2.duckdns.org
 
 on:
   workflow_dispatch:  # This makes the workflow only run manually
