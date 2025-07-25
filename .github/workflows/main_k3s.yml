@@ -11,7 +11,7 @@ env:
   KUBECONFIG: /home/runner/.kube/config
   KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
   HELM_EXPERIMENTAL_OCI: 1
-  LOCALSTACK_HOSTNAME: shivajshankar1.duckdns.org
+  LOCALSTACK_HOSTNAME: shivajshankar2.duckdns.org
   AWS_ACCESS_KEY_ID: test
   AWS_SECRET_ACCESS_KEY: test
   AWS_DEFAULT_REGION: us-east-1
@@ -140,10 +140,15 @@ jobs:
           npm install -g aws-cdk-local aws-cdk
           
           # Configure AWS CLI for LocalStack
+          export AWS_ACCESS_KEY_ID=test
+          export AWS_SECRET_ACCESS_KEY=test
+          export AWS_DEFAULT_REGION=us-east-1
+          export CDK_DEFAULT_ACCOUNT=000000000000
+          export CDK_DEFAULT_REGION=us-east-1
           export LOCALSTACK_ENDPOINT="http://${LOCALSTACK_HOSTNAME}:31566"
           
-          # Bootstrap CDK for LocalStack
-          cdklocal --endpoint-url $LOCALSTACK_ENDPOINT bootstrap
+          # Bootstrap CDK for LocalStack with dummy account/region
+          cdklocal --endpoint-url $LOCALSTACK_ENDPOINT bootstrap aws://000000000000/us-east-1
           
           # Deploy the CDK stack
           cdklocal --endpoint-url $LOCALSTACK_ENDPOINT deploy --require-approval never
