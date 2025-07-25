@@ -37,18 +37,37 @@ jobs:
 
       - name: Set up kubectl
         run: |
+          # Install required tools
+          sudo apt-get update && sudo apt-get install -y dnsutils net-tools curl
+          
+          # Debug network connectivity
+          echo "=== Network Debug Info ==="
+          echo "Testing connection to Kubernetes API..."
+          curl -vk https://shivajshankar2.duckdns.org:6443/version || echo "Curl test failed"
+          
+          # Set up kubeconfig
           mkdir -p ~/.kube
           echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig.yaml
-          # Update server URL if it's localhost/127.0.0.1
-          sed -i 's|server:.*127.0.0.1|server: https://shivajshankar1.duckdns.org:6443|' kubeconfig.yaml
+          
+          # Update server URL to use HTTPS
+          sed -i 's|server: .*|server: https://shivajshankar2.duckdns.org:6443|' kubeconfig.yaml
+          
+          # Add insecure-skip-tls-verify for testing
+          echo "insecure-skip-tls-verify: true" >> kubeconfig.yaml
+          
           cp kubeconfig.yaml ~/.kube/config
           chmod 600 ~/.kube/config
           
-          # Debug info
+          # Debug kubeconfig
           echo "=== Kubeconfig content ==="
           cat ~/.kube/config
-          echo "\n=== Kubernetes nodes ==="
-          kubectl get nodes || true
+          
+          # Test kubectl with verbose output
+          echo "=== Testing kubectl connection ==="
+          kubectl config view
+          kubectl config use-context default
+          kubectl cluster-info --insecure-skip-tls-verify=true
+          kubectl get nodes --insecure-skip-tls-verify=true
 
       - name: Set up Helm
         uses: azure/setup-helm@v3
