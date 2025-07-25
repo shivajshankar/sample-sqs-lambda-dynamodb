@@ -78,34 +78,34 @@ jobs:
           
       - name: Clean up existing LocalStack
         run: |
-          # Force delete the existing LocalStack release
+          # Force delete the existing LocalStack release without TLS verification
           helm uninstall localstack --namespace localstack || true
           
-          # Delete any remaining resources
-          kubectl delete all --all -n localstack || true
+          # Delete any remaining resources in the localstack namespace
+          kubectl delete all --all -n localstack --insecure-skip-tls-verify=true || true
           
           # Wait for resources to be cleaned up
           sleep 10
 
-      - name: Deploy LocalStack with insecure TLS
+      - name: Deploy LocalStack with updated configuration
         run: |
           # Deploy LocalStack with updated configuration
           helm upgrade --install localstack localstack/localstack \
             --namespace localstack \
             --create-namespace \
             --set service.type=NodePort \
-            --set service.ports.edge=31567 \
-            --set service.ports.api=31568 \
+            --set service.edgePort=31567 \
+            --set service.apiPort=31568 \
             --set-string "extraEnvVars[0].name=HOSTNAME_EXTERNAL" \
             --set-string "extraEnvVars[0].value=${LOCALSTACK_HOSTNAME}" \
             --set-string "extraEnvVars[1].name=USE_SSL" \
-            --set-string "extraEnvVars[1].value=true" \
+            --set-string "extraEnvVars[1].value=\"true\"" \
             --set-string "extraEnvVars[2].name=DEBUG" \
-            --set-string "extraEnvVars[2].value=1" \
+            --set-string "extraEnvVars[2].value=\"1\"" \
             --set-string "extraEnvVars[3].name=LAMBDA_EXECUTOR" \
-            --set-string "extraEnvVars[3].value=local" \
+            --set-string "extraEnvVars[3].value=\"local\"" \
             --set-string "extraEnvVars[4].name=HOSTNAME" \
-            --set-string "extraEnvVars[4].value=0.0.0.0" \
+            --set-string "extraEnvVars[4].value=\"0.0.0.0\"" \
             --set "volumeMounts[0].name=var-run-docker-sock" \
             --set "volumeMounts[0].mountPath=/var/run/docker.sock" \
             --set "volumes[0].name=var-run-docker-sock" \
