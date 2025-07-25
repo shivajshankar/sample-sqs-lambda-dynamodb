@@ -136,10 +136,20 @@ jobs:
 
       - name: Deploy CDK stack
         run: |
+          # Install CDK and CDK Local
           npm install -g aws-cdk-local aws-cdk
-          cdklocal --version
-          cdklocal bootstrap aws://000000000000/us-east-1
-          cdklocal deploy --require-approval never
+          
+          # Configure AWS CLI for LocalStack
+          export AWS_ACCESS_KEY_ID=test
+          export AWS_SECRET_ACCESS_KEY=test
+          export AWS_DEFAULT_REGION=us-east-1
+          export LOCALSTACK_ENDPOINT="http://${LOCALSTACK_HOSTNAME}:31566"
+          
+          # Bootstrap CDK for LocalStack
+          cdklocal --endpoint-url $LOCALSTACK_ENDPOINT bootstrap
+          
+          # Deploy the CDK stack
+          cdklocal --endpoint-url $LOCALSTACK_ENDPOINT deploy --require-approval never
 
       - name: Run tests
         run: |
