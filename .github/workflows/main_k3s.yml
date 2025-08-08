@@ -132,6 +132,7 @@ jobs:
             - name: DYNAMODB_IN_MEMORY_SHARE_DB
               value: "1"
           
+          # Volume mounts - using emptyDir for localstack data
           volumeMounts:
             - name: docker-sock
               mountPath: /var/run/docker.sock
@@ -143,22 +144,22 @@ jobs:
               hostPath:
                 path: /var/run/docker.sock
             - name: localstack-data
-              hostPath:
-                path: /var/lib/localstack
-                type: DirectoryOrCreate
+              emptyDir: {}
           
+          # Disable persistence to avoid conflicts
           persistence:
-            enabled: true
-            size: 1Gi
-            storageClass: local-path
+            enabled: false
           
+          # Configure host networking for better Docker integration
           hostNetwork: true
           dnsPolicy: ClusterFirstWithHostNet
           
+          # Add security context to run as root (required for Docker socket access)
           securityContext:
             runAsUser: 0
             runAsGroup: 0
           
+          # Add init container to ensure Docker socket is accessible
           initContainers:
             - name: fix-docker-socket
               image: busybox
