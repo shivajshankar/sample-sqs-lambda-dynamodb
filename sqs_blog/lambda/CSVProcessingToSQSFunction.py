@@ -2,51 +2,57 @@ import json
 import boto3
 import csv
 import os
+import logging
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 def lambda_handler(event, context):
-
-    print(event)
-    # Retrieve the S3 bucket and object key from the SQS message
+    logger.info(f'Received event: {json.dumps(event)}')
     
-    record = event['Records'][0]
+    try:
+        record = event['Records'][0]
+        source_bucket = record['s3']['bucket']['name']
+        key = record['s3']['object']['key']
+        logger.info(f'Processing file s3://{source_bucket}/{key}')
 
-    source_bucket = record['s3']['bucket']['name']
-    key = record['s3']['object']['key']
+        s3_client = boto3.client('s3')
+        response = s3_client.get_object(Bucket=source_bucket, Key=key)
+        csv_content = response['Body'].read().decode('utf-8-sig')
 
-    # Read the CSV file from S3
-    s3_client = boto3.client('s3')
-    response = s3_client.get_object(Bucket=source_bucket, Key=key)
-    csv_content = response['Body'].read().decode('utf-8-sig')
+        sqs_client = boto3.client('sqs')
+        queue_url = os.environ['SQS_QUEUE_URL']
+        
+        csv_reader = csv.DictReader(csv_content.splitlines())
+        message_batch = []
+        total_messages = 0
+        
+        for row in csv_reader:
+            json_message = json.dumps(row)
+            message_batch.append({
+                'Id': str(len(message_batch) + 1),
+                'MessageBody': json_message
+            })
 
-    # Initialize the SQS client
-    sqs_client = boto3.client('sqs')
-    queue_url = os.environ['SQS_QUEUE_URL']
+            if len(message_batch) == 10:
+                sqs_client.send_message_batch(
+                    QueueUrl=queue_url,
+                    Entries=message_batch
+                )
+                total_messages += len(message_batch)
+                logger.info(f'Sent batch of {len(message_batch)} messages to SQS')
+                message_batch = []
 
-    # Parse the CSV records and send them to SQS as batch messages
-    csv_reader = csv.DictReader(csv_content.splitlines())
-    message_batch = []
-    for row in csv_reader:
-        # Convert the row to JSON
-        json_message = json.dumps(row)
-
-        # Add the message to the batch
-        message_batch.append({
-            'Id': str(len(message_batch) + 1),
-            'MessageBody': json_message
-        })
-
-        # Send the batch of messages when it reaches the maximum batch size (10 messages)
-        if len(message_batch) == 10:
+        if message_batch:
             sqs_client.send_message_batch(
                 QueueUrl=queue_url,
                 Entries=message_batch
             )
-            message_batch = []
-            print('Sent messages in batch')
-
-    # Send any remaining messages in the batch
-    if message_batch:
-        sqs_client.send_message_batch(
-            QueueUrl=queue_url,
-            Entries=message_batch
-        )
+            total_messages += len(message_batch)
+            logger.info(f'Sent final batch of {len(message_batch)} messages to SQS')
+        
+        logger.info(f'Successfully processed {total_messages} messages to SQS')
+        
+    except Exception as e:
+        logger.error(f'Error processing CSV: {str(e)}')
+        raise
