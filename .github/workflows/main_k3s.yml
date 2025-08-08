@@ -99,6 +99,16 @@ jobs:
             edgePort: 4566
             ports:
               edge: 4566
+              sqs: 4566
+              lambda: 4566
+              dynamodb: 4566
+              iam: 4566
+              cloudwatch: 4566
+              logs: 4566
+              ssm: 4566
+              cloudformation: 4566
+              sts: 4566
+              sns: 4566
           
           extraEnvVars:
             - name: SERVICES
@@ -117,35 +127,44 @@ jobs:
               value: "host"
             - name: LAMBDA_REMOTE_DOCKER
               value: "false"
+            - name: DYNAMODB_IN_MEMORY
+              value: "true"
+            - name: DYNAMODB_IN_MEMORY_SHARE_DB
+              value: "1"
           
-          # Mount Docker socket for Lambda execution
           volumeMounts:
             - name: docker-sock
               mountPath: /var/run/docker.sock
+            - name: localstack-data
+              mountPath: /var/lib/localstack
           
           volumes:
             - name: docker-sock
               hostPath:
                 path: /var/run/docker.sock
+            - name: localstack-data
+              hostPath:
+                path: /var/lib/localstack
+                type: DirectoryOrCreate
           
-          # Disable persistence to prevent conflicts
           persistence:
-            enabled: false
+            enabled: true
+            size: 1Gi
+            storageClass: local-path
           
-          # Configure host networking for better Docker integration
           hostNetwork: true
           dnsPolicy: ClusterFirstWithHostNet
           
-          # Add security context to run as root (required for Docker socket access)
           securityContext:
             runAsUser: 0
             runAsGroup: 0
           
-          # Add init container to ensure Docker socket is accessible
           initContainers:
             - name: fix-docker-socket
               image: busybox
               command: ['sh', '-c', 'chmod 777 /var/run/docker.sock']
+              securityContext:
+                runAsUser: 0
               volumeMounts:
                 - name: docker-sock
                   mountPath: /var/run/docker.sock
