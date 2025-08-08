@@ -120,20 +120,25 @@ jobs:
               value: "1"
             - name: DEBUG
               value: "1"
+            - name: HOSTNAME_EXTERNAL
+              value: "${LOCALSTACK_HOSTNAME}"
           
-          persistence:
-            enabled: true
-            size: 1Gi
-            storageClass: local-path
+          # Disable the default volume mounts
+          volumeMounts: []
+          volumes: []
           
-          volumeMounts:
+          # Add our custom volume mounts
+          extraVolumeMounts:
             - name: localstack-data
               mountPath: /var/lib/localstack
-          
-          volumes:
+              
+          extraVolumes:
             - name: localstack-data
-              persistentVolumeClaim:
-                claimName: localstack-pvc
+              emptyDir: {}
+          
+          # Disable persistence to prevent conflicts
+          persistence:
+            enabled: false
           EOF
 
       - name: Deploy LocalStack with ARM64 configuration
