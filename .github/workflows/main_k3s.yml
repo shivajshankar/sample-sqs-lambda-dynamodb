@@ -87,43 +87,61 @@ jobs:
           # Wait for resources to be cleaned up
           sleep 10
 
+      - name: Create LocalStack values file
+        run: |
+          cat > localstack-values.yaml <<EOF
+          image:
+            repository: localstack/localstack
+            tag: latest-arm64
+          
+          service:
+            type: NodePort
+            edgePort: 4566
+            ports:
+              sqs: 4566
+              lambda: 4566
+              dynamodb: 4566
+              iam: 4566
+              cloudwatch: 4566
+              logs: 4566
+              ssm: 4566
+              cloudformation: 4566
+              sts: 4566
+              sns: 4566
+          
+          extraEnvVars:
+            - name: SERVICES
+              value: "sqs,lambda,dynamodb,iam,cloudwatch,logs,ssm,cloudformation,sts,sns"
+            - name: LAMBDA_RUNTIME_ENVIRONMENT_TIMEOUT
+              value: "180"
+            - name: DOCKER_HOST
+              value: "unix:///var/run/docker.sock"
+            - name: DISABLE_CORS_CHECKS
+              value: "1"
+            - name: DEBUG
+              value: "1"
+          
+          persistence:
+            enabled: true
+            size: 1Gi
+            storageClass: local-path
+          
+          volumeMounts:
+            - name: localstack-data
+              mountPath: /var/lib/localstack
+          
+          volumes:
+            - name: localstack-data
+              persistentVolumeClaim:
+                claimName: localstack-pvc
+          EOF
+
       - name: Deploy LocalStack with ARM64 configuration
         run: |
-          # Deploy LocalStack with ARM64 configuration
           helm upgrade --install localstack localstack/localstack \
             --namespace localstack \
             --create-namespace \
-            --set image.repository=localstack/localstack \
-            --set image.tag=latest-arm64 \
-            --set service.type=NodePort \
-            --set service.edgePort=4566 \
-            --set service.ports.sqs=4566 \
-            --set service.ports.lambda=4566 \
-            --set service.ports.dynamodb=4566 \
-            --set service.ports.iam=4566 \
-            --set service.ports.cloudwatch=4566 \
-            --set service.ports.logs=4566 \
-            --set service.ports.ssm=4566 \
-            --set service.ports.cloudformation=4566 \
-            --set service.ports.sts=4566 \
-            --set service.ports.sns=4566 \
-            --set-string extraEnvVars[0].name=SERVICES \
-            --set-string 'extraEnvVars[0].value=sqs,lambda,dynamodb,iam,cloudwatch,logs,ssm,cloudformation,sts,sns' \
-            --set-string extraEnvVars[1].name=LAMBDA_RUNTIME_ENVIRONMENT_TIMEOUT \
-            --set-string extraEnvVars[1].value='180' \
-            --set-string extraEnvVars[2].name=DOCKER_HOST \
-            --set-string 'extraEnvVars[2].value=unix:///var/run/docker.sock' \
-            --set-string extraEnvVars[3].name=DISABLE_CORS_CHECKS \
-            --set-string extraEnvVars[3].value='1' \
-            --set-string extraEnvVars[4].name=DEBUG \
-            --set-string extraEnvVars[4].value='1' \
-            --set persistence.enabled=true \
-            --set persistence.size=1Gi \
-            --set persistence.storageClass=local-path \
-            --set volumeMounts[0].name=localstack-data \
-            --set volumeMounts[0].mountPath=/var/lib/localstack \
-            --set volumes[0].name=localstack-data \
-            --set volumes[0].persistentVolumeClaim.claimName=localstack-pvc \
+            --values localstack-values.yaml \
             --kube-insecure-skip-tls-verify
 
       - name: Wait for LocalStack to be ready
