@@ -95,19 +95,10 @@ jobs:
             tag: latest-arm64
           
           service:
-            type: NodePort
+            type: LoadBalancer
             edgePort: 4566
             ports:
-              sqs: 4566
-              lambda: 4566
-              dynamodb: 4566
-              iam: 4566
-              cloudwatch: 4566
-              logs: 4566
-              ssm: 4566
-              cloudformation: 4566
-              sts: 4566
-              sns: 4566
+              edge: 4566
           
           extraEnvVars:
             - name: SERVICES
@@ -122,23 +113,42 @@ jobs:
               value: "1"
             - name: HOSTNAME_EXTERNAL
               value: "${LOCALSTACK_HOSTNAME}"
+            - name: LAMBDA_DOCKER_NETWORK
+              value: "host"
+            - name: LAMBDA_REMOTE_DOCKER
+              value: "false"
           
-          # Disable the default volume mounts
-          volumeMounts: []
-          volumes: []
+          # Mount Docker socket for Lambda execution
+          volumeMounts:
+            - name: docker-sock
+              mountPath: /var/run/docker.sock
           
-          # Add our custom volume mounts
-          extraVolumeMounts:
-            - name: localstack-data
-              mountPath: /var/lib/localstack
-              
-          extraVolumes:
-            - name: localstack-data
-              emptyDir: {}
+          volumes:
+            - name: docker-sock
+              hostPath:
+                path: /var/run/docker.sock
           
           # Disable persistence to prevent conflicts
           persistence:
             enabled: false
+          
+          # Configure host networking for better Docker integration
+          hostNetwork: true
+          dnsPolicy: ClusterFirstWithHostNet
+          
+          # Add security context to run as root (required for Docker socket access)
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          
+          # Add init container to ensure Docker socket is accessible
+          initContainers:
+            - name: fix-docker-socket
+              image: busybox
+              command: ['sh', '-c', 'chmod 777 /var/run/docker.sock']
+              volumeMounts:
+                - name: docker-sock
+                  mountPath: /var/run/docker.sock
           EOF
 
       - name: Deploy LocalStack with ARM64 configuration
