@@ -81,11 +81,13 @@ class SqsBlogStack(Stack):
 
         # Create pre-processing Lambda function
         csv_processing_to_sqs_function  = _lambda.Function(self, 'CSVProcessingToSQSFunction',
-                                   runtime=_lambda.Runtime.PYTHON_3_8,
+                                   runtime=_lambda.Runtime.PYTHON_3_9,
                                    code=_lambda.Code.from_asset('sqs_blog/lambda'),
                                    handler='CSVProcessingToSQSFunction.lambda_handler',
                                    role=role,
-                                   tracing=Tracing.ACTIVE
+                                   tracing=Tracing.ACTIVE,
+                                   architecture=_lambda.Architecture.ARM_64,
+                                   timeout=Duration.seconds(30)
                                    )
         csv_processing_to_sqs_function .add_environment('SQS_QUEUE_URL', queue.queue_url)
 
@@ -144,11 +146,13 @@ class SqsBlogStack(Stack):
         # Create a post-processing Lambda function with the specified role
         sqs_to_dynamodb_function  = _lambda.Function(
             self, "SQSToDynamoDBFunction",
-            runtime=_lambda.Runtime.PYTHON_3_8,
+            runtime=_lambda.Runtime.PYTHON_3_9,
             code=_lambda.Code.from_asset('sqs_blog/lambda'),
-                                   handler='SQSToDynamoDBFunction.lambda_handler',
-                                    role=role,
-                                    tracing=Tracing.ACTIVE  # Enable active tracing with X-Ray
+            handler='SQSToDynamoDBFunction.lambda_handler',
+            role=role,
+            tracing=Tracing.ACTIVE,
+            architecture=_lambda.Architecture.ARM_64,
+            timeout=Duration.seconds(30)
         )
 
         # Add tags to the Lambda function
